@@ -151,7 +151,8 @@ int main(int argc, char *argv[]) {
         }
 
         unique_lock<mutex> lock(bufferMutex);
-        this_thread::sleep_for(frameInterval);
+
+        auto frameStart = chrono::steady_clock::now();
 
         // draw the display
         auto now= chrono::steady_clock::now();
@@ -202,8 +203,14 @@ int main(int argc, char *argv[]) {
             SDL_RenderPresent(renderer);
         }
 
- 
         lock.unlock();
+
+        auto frameEnd = chrono::steady_clock::now();
+        auto elapsed = chrono::duration_cast<chrono::milliseconds>(frameEnd - frameStart);
+
+        if (elapsed < frameInterval)
+            this_thread::sleep_for(frameInterval - elapsed);
+
     }
 
     running= false;
