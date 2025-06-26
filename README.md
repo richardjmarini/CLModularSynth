@@ -95,4 +95,4 @@ make
 ./cv --duration 2 | ./vco --sensitivity 100 | ./scope --trigger --horizontal_scale 800
 ```
 
-![scope_screenshot](images/scope_screenshot.jpg)
+![scope_screenshot](images/scope_screenshot.png)
