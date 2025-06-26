@@ -1,0 +1,59 @@
+# Build and binary directories
+/bin/
+/build/
+/CMakeFiles/
+/cmake-build-*/
+
+# Compiled object files
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+
+# Executables (Linux/Mac/Windows)
+*.exe
+*.out
+*.app
+
+# Make and CMake generated files
+Makefile
+CMakeCache.txt
+compile_commands.json
+*.cmake
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime*
+*.code-workspace
+
+# Clang/clangd
+.cache/
+.clangd
+.clangd/
+*.clangd
+
+# macOS metadata
+.DS_Store
+
+# Backup/swap files
+*~
+*.swp
+*.bak
+*.tmp
+
+# Logs
+*.log
+
+# Core dumps
+core
+core.*
+
+# Git-specific
+*.orig
+
+# Generated dependency files
+*.d
