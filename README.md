@@ -92,7 +92,8 @@ make
 
 ## Exmaple
 ```bash
-./cv --duration 2 | ./vco --sensitivity 100 | ./scope --trigger --horizontal_scale 800
+./cv --duration 1 | ./vco --sensitivity 1 | ./scope 48000 --trigger_offset 0 --trigger_threshold 0.500 --trigger
+
 ```
 
 ![scope_screenshot](images/scope_screenshot.png)
