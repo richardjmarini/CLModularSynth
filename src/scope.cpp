@@ -4,6 +4,10 @@
 #include <sstream>
 #include <thread>
 #include <chrono>
+#include <algorithm>
+#include <mutex>
+#include <atomic>
+#include <condition_variable>
 
 #include <argparse/argparse.hpp>
 #include <SDL2/SDL.h>
@@ -30,8 +34,6 @@ int main(int argc, char *argv[]) {
     }
 
     bool quit= false;
-    string line;
-    float sample;
     int circularBufferIndex= 0;
     chrono::steady_clock::time_point lastTriggerTime= chrono::steady_clock::now();
     bool triggerArmed= true;
@@ -51,6 +53,9 @@ int main(int argc, char *argv[]) {
     bool trigger= args.get<bool>("trigger");
     float triggerThreshold= args.get<float>("trigger_threshold");
     int triggerOffset= args.get<int>("trigger_offset");
+    mutex bufferMutex;
+    condition_variable dataReady;
+    atomic<bool> running(true);
 
     cout << "Trigger Mode: " << trigger << endl
          << "Trigger Threshold: " << triggerThreshold <<  endl
@@ -80,9 +85,64 @@ int main(int argc, char *argv[]) {
         windowHeight
     );
 
-    SDL_LockTexture(waveformTexture, nullptr, (void**)&pixels, &pitch);
 
+    thread inputThread([&]() {
+    try {
+        string line;
+        float sample;
 
+        while (running) {
+
+            if (getline(cin, line)) {
+                istringstream iss(line);
+                if (iss >> sample) {
+                    lock_guard<mutex> lock(bufferMutex);
+
+                    circularBuffer[circularBufferIndex]= sample;
+                    int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
+                    float previousSample= circularBuffer[previousCircularBufferIndex];
+
+                    if (trigger
+                        && triggerArmed
+                        && previousSample < triggerThreshold
+                        && sample >= triggerThreshold
+                        && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
+
+                        // if we're in trigger mode
+
+                        int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
+                        for(int i= 0; i < displayBufferSize; ++i) {
+                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
+                        }
+
+                        triggerArmed= false;
+                        triggerIndex= start;
+                        lastTriggerTime= chrono::steady_clock::now();
+
+                    } else {
+
+                        // if we're NOT in trigger mode
+
+                        int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
+                        for(int i= 0; i < displayBufferSize; ++i) {
+                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
+                        }
+                    }
+
+                    circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
+   
+                    dataReady.notify_one();
+                }
+            } else {
+                this_thread::sleep_for(chrono::microseconds(100));
+            }
+        }
+    } catch (const exception &e) {
+        cerr << "EXCEPTION: " << e.what() << endl;
+        running= false;
+    }
+    });
+   
     while (!quit) {
 
         while (SDL_PollEvent(&event)) {
@@ -90,48 +150,8 @@ int main(int argc, char *argv[]) {
                 quit = true;
         }
 
-        // get samples
-        if (getline(cin, line)) {
-
-            istringstream iss(line);
-
-            if (iss >> sample) {
-
-                circularBuffer[circularBufferIndex]= sample;
-                int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
-                float previousSample= circularBuffer[previousCircularBufferIndex];
-
-                if (trigger
-                    && triggerArmed 
-                    && previousSample < triggerThreshold
-                    && sample >= triggerThreshold
-                    && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
-
-                    // if we're in trigger mode
-
-                    int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
-                    for(int i= 0; i < displayBufferSize; ++i) {
-                        displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
-                    }
-
-                    triggerArmed= false;
-                    triggerIndex= start;
-                    lastTriggerTime= chrono::steady_clock::now();
-
-                } else {
-                
-                    // if we're NOT in trigger mode
- 
-                    int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
-                    for(int i= 0; i < displayBufferSize; ++i) {
-                        displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
-                    }
-                }
-
-                circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
-            }
-        }
-
+        unique_lock<mutex> lock(bufferMutex);
+        this_thread::sleep_for(frameInterval);
 
         // draw the display
         auto now= chrono::steady_clock::now();
@@ -181,11 +201,19 @@ int main(int argc, char *argv[]) {
 
             SDL_RenderPresent(renderer);
         }
+
+ 
+        lock.unlock();
     }
 
+    running= false;
+    inputThread.join();
+
+    SDL_DestroyTexture(waveformTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+
 
     return 0;
 }
