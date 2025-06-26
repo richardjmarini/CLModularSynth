@@ -85,64 +85,65 @@ int main(int argc, char *argv[]) {
         windowHeight
     );
 
-
+    // start input thread
     thread inputThread([&]() {
-    try {
-        string line;
-        float sample;
+        try {
+            string line;
+            float sample;
 
-        while (running) {
+            while (running) {
 
-            if (getline(cin, line)) {
-                istringstream iss(line);
-                if (iss >> sample) {
-                    lock_guard<mutex> lock(bufferMutex);
+                if (getline(cin, line)) {
+                    istringstream iss(line);
+                    if (iss >> sample) {
+                        lock_guard<mutex> lock(bufferMutex);
 
-                    circularBuffer[circularBufferIndex]= sample;
-                    int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
-                    float previousSample= circularBuffer[previousCircularBufferIndex];
+                        circularBuffer[circularBufferIndex]= sample;
+                        int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
+                        float previousSample= circularBuffer[previousCircularBufferIndex];
 
-                    if (trigger
-                        && triggerArmed
-                        && previousSample < triggerThreshold
-                        && sample >= triggerThreshold
-                        && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
+                        if (trigger
+                            && triggerArmed
+                            && previousSample < triggerThreshold
+                            && sample >= triggerThreshold
+                            && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
 
-                        // if we're in trigger mode
+                            // if we're in trigger mode
 
-                        int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
-                        for(int i= 0; i < displayBufferSize; ++i) {
-                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
+                            int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
+                            for(int i= 0; i < displayBufferSize; ++i) {
+                                displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
+                            }
+
+                            triggerArmed= false;
+                            triggerIndex= start;
+                            lastTriggerTime= chrono::steady_clock::now();
+
+                        } else {
+
+                            // if we're NOT in trigger mode
+
+                            int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
+                            for(int i= 0; i < displayBufferSize; ++i) {
+                                displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
+                            }
                         }
 
-                        triggerArmed= false;
-                        triggerIndex= start;
-                        lastTriggerTime= chrono::steady_clock::now();
-
-                    } else {
-
-                        // if we're NOT in trigger mode
-
-                        int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
-                        for(int i= 0; i < displayBufferSize; ++i) {
-                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
-                        }
-                    }
-
-                    circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
+                        circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
    
-                    dataReady.notify_one();
+                        dataReady.notify_one();
+                    }
+                } else {
+                    this_thread::sleep_for(chrono::microseconds(100));
                 }
-            } else {
-                this_thread::sleep_for(chrono::microseconds(100));
             }
+        } catch (const exception &e) {
+            cerr << "An input error occured: " << e.what() << endl;
+            running= false;
         }
-    } catch (const exception &e) {
-        cerr << "EXCEPTION: " << e.what() << endl;
-        running= false;
-    }
     });
    
+    // run render loop in the main thread
     while (!quit) {
 
         while (SDL_PollEvent(&event)) {
@@ -150,12 +151,12 @@ int main(int argc, char *argv[]) {
                 quit = true;
         }
 
+        auto frameStart = chrono::steady_clock::now();
+        auto now= chrono::steady_clock::now();
+
         unique_lock<mutex> lock(bufferMutex);
 
-        auto frameStart = chrono::steady_clock::now();
-
         // draw the display
-        auto now= chrono::steady_clock::now();
         if(now - lastDrawTime >= frameInterval) {
 
             lastDrawTime= now;
@@ -207,7 +208,6 @@ int main(int argc, char *argv[]) {
 
         auto frameEnd = chrono::steady_clock::now();
         auto elapsed = chrono::duration_cast<chrono::milliseconds>(frameEnd - frameStart);
-
         if (elapsed < frameInterval)
             this_thread::sleep_for(frameInterval - elapsed);
 
