@@ -4,6 +4,44 @@
 
 ---
 
+## 🛠 Dependencies
+
+This project requires the following dependencies:
+
+### 🧱 Runtime & Build
+
+- **C++17 or higher**  
+  Modern C++ standard for core language features.
+
+- **SDL2**  
+  Used by `scope` to render real-time waveform visualization.  
+  Install it with your system package manager:
+
+  - **Ubuntu/Debian**:
+    ```bash
+    sudo apt install libsdl2-dev
+    ```
+  - **macOS** (via Homebrew):
+    ```bash
+    brew install sdl2
+    ```
+
+  - **Windows**:
+    Download from [https://libsdl.org](https://libsdl.org) or use with vcpkg:
+    ```bash
+    vcpkg install sdl2
+    ```
+
+### 🧩 Header-only Library
+
+- **[argparse](https://github.com/p-ranav/argparse)**  
+  A modern C++ header-only argument parser.  
+  To use it, clone the repo or copy `argparse.hpp` into your `include/` directory.
+
+  ```bash
+  git clone https://github.com/p-ranav/argparse.gi
+  ```
+
 ## Build Instructions
 
 To build the project, use:
@@ -55,6 +93,4 @@ make
 ## Exmaple
 ```bash
 ./cv --duration 2 | ./vco --sensitivity 100 | ./scope --trigger --horizontal_scale 800
-
-
-
+```
