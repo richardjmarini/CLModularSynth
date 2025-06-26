@@ -91,50 +91,47 @@ int main(int argc, char *argv[]) {
             string line;
             float sample;
 
+
             while (running) {
 
-                if (getline(cin, line)) {
-                    istringstream iss(line);
-                    if (iss >> sample) {
+                if (string line; getline(std::cin, line) && istringstream(line) >> sample) {
+
+                    circularBuffer[circularBufferIndex]= sample;
+                    int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
+                    float previousSample= circularBuffer[previousCircularBufferIndex];
+
+                    if (trigger
+                        && triggerArmed
+                        && previousSample < triggerThreshold
+                        && sample >= triggerThreshold
+                        && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
+
+                        // if we're in trigger mode
+
+                        int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
                         lock_guard<mutex> lock(bufferMutex);
-
-                        circularBuffer[circularBufferIndex]= sample;
-                        int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
-                        float previousSample= circularBuffer[previousCircularBufferIndex];
-
-                        if (trigger
-                            && triggerArmed
-                            && previousSample < triggerThreshold
-                            && sample >= triggerThreshold
-                            && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
-
-                            // if we're in trigger mode
-
-                            int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
-                            for(int i= 0; i < displayBufferSize; ++i) {
-                                displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
-                            }
-
-                            triggerArmed= false;
-                            triggerIndex= start;
-                            lastTriggerTime= chrono::steady_clock::now();
-
-                        } else {
-
-                            // if we're NOT in trigger mode
-
-                            int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
-                            for(int i= 0; i < displayBufferSize; ++i) {
-                                displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
-                            }
+                        for(int i= 0; i < displayBufferSize; ++i) {
+                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
                         }
 
-                        circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
-   
-                        dataReady.notify_one();
+                        triggerArmed= false;
+                        triggerIndex= start;
+                        lastTriggerTime= chrono::steady_clock::now();
+
+                    } else {
+
+                        // if we're NOT in trigger mode
+
+                        int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
+                        lock_guard<mutex> lock(bufferMutex);
+                        for(int i= 0; i < displayBufferSize; ++i) {
+                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
+                        }
                     }
-                } else {
-                    this_thread::sleep_for(chrono::microseconds(100));
+
+                    circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
+  
+                    dataReady.notify_one();
                 }
             }
         } catch (const exception &e) {
@@ -154,7 +151,6 @@ int main(int argc, char *argv[]) {
         auto frameStart = chrono::steady_clock::now();
         auto now= chrono::steady_clock::now();
 
-        unique_lock<mutex> lock(bufferMutex);
 
         // draw the display
         if(now - lastDrawTime >= frameInterval) {
@@ -163,23 +159,26 @@ int main(int argc, char *argv[]) {
             float scale= static_cast<float>(displayBufferSize) / windowWidth;
             float yCenter= (windowHeight / 2);
             int yLimit= windowHeight - 1;
-            uint32_t pitchFactor= pitch / 4;
 
             SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); 
             SDL_LockTexture(waveformTexture, nullptr, (void **)&pixels, &pitch);
+            uint32_t pitchFactor= pitch / 4;
             memset(pixels, 0, pitch * windowHeight);
 
+            lock_guard<mutex> lock(bufferMutex);
             for (int i= 1; i < windowWidth; ++i) {
 
                 int idx1= (static_cast<int>((i - 1) * scale)) % displayBufferSize;
                 int idx2= (static_cast<int>(i * scale)) % displayBufferSize;
+
                 int y1= yCenter - displayBuffer[idx1] * yCenter;
                 int y2= yCenter - displayBuffer[idx2] * yCenter;
+
                 y1= clamp(y1, 0, yLimit);
                 y2= clamp(y2, 0, yLimit);
                 if(y1 > y2)
                     swap(y1, y2);
-           
+            
                 for(int y= y1; y <= y2; ++y) 
                     pixels[y * pitchFactor + i]= 0x00FF00; // green
             }
@@ -203,8 +202,6 @@ int main(int argc, char *argv[]) {
 
             SDL_RenderPresent(renderer);
         }
-
-        lock.unlock();
 
         auto frameEnd = chrono::steady_clock::now();
         auto elapsed = chrono::duration_cast<chrono::milliseconds>(frameEnd - frameStart);
