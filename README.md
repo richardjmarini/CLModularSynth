@@ -10,11 +10,12 @@ To build the project, use:
 
 ```bash
 make
+```
 
 ## Usage
 ```bash
 ./cv [--sampleRate VAR] [--amplitude VAR] [--duration VAR]
-
+```
 | Option          | Description              | Default |
 | --------------- | ------------------------ | ------- |
 | `--sampleRate`  | Sampling rate (Hz)       | 48000   |
@@ -26,7 +27,7 @@ make
 
 ```bash
 ./vco [--sensitivity VAR] [--sampleRate VAR] [--amplitude VAR]
-
+```
 | Option          | Description                 | Default |
 | --------------- | --------------------------- | ------- |
 | `--sensitivity` | Control voltage sensitivity | 1       |
@@ -37,7 +38,7 @@ make
 
 ```bash
 ./scope [--horizontal_scale VAR] [--trigger] [--trigger_threshold VAR] [--trigger_offset VAR] [--buffer_size VAR] [--window_width VAR] [--window_height VAR]
-
+```
 | Option                | Description                                    | Default |
 | --------------------- | ---------------------------------------------- | ------- |
 | `--horizontal_scale`  | Time scale of the horizontal axis              | 48000   |
