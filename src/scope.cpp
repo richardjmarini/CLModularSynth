@@ -88,45 +88,43 @@ int main(int argc, char *argv[]) {
     // start input thread
     thread inputThread([&]() {
         try {
+
             string line;
             float sample;
 
-
             while (running) {
 
-                if (string line; getline(std::cin, line) && istringstream(line) >> sample) {
+                if (getline(std::cin, line) && istringstream(line) >> sample) {
 
                     circularBuffer[circularBufferIndex]= sample;
                     int previousCircularBufferIndex= (circularBufferIndex - 1 + circularBufferSize) % circularBufferSize;
                     float previousSample= circularBuffer[previousCircularBufferIndex];
 
-                    if (trigger
+                    bool fireTrigger= trigger
                         && triggerArmed
                         && previousSample < triggerThreshold
                         && sample >= triggerThreshold
-                        && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100)) {
+                        && chrono::steady_clock::now() - lastTriggerTime > chrono::milliseconds(100);
 
-                        // if we're in trigger mode
 
-                        int start= (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize;
+                    int start= fireTrigger 
+                        ? (circularBufferIndex - triggerOffset + circularBufferSize) % circularBufferSize
+                        : (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
+
+
+                    {
                         lock_guard<mutex> lock(bufferMutex);
                         for(int i= 0; i < displayBufferSize; ++i) {
                             displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
                         }
+                    }
+
+                    if(fireTrigger) {
 
                         triggerArmed= false;
                         triggerIndex= start;
                         lastTriggerTime= chrono::steady_clock::now();
 
-                    } else {
-
-                        // if we're NOT in trigger mode
-
-                        int start= (circularBufferIndex - displayBufferSize + circularBufferSize) % circularBufferSize;
-                        lock_guard<mutex> lock(bufferMutex);
-                        for(int i= 0; i < displayBufferSize; ++i) {
-                            displayBuffer[i]= circularBuffer[(start + i) % circularBufferSize];
-                        }
                     }
 
                     circularBufferIndex= (circularBufferIndex + 1) % circularBufferSize;
