@@ -1,26 +1,34 @@
-INCLUDE_DIR=./include
-SOURCE_DIR=./src
-BIN_DIR=./bin
+INCLUDE_DIR = ./include
+SOURCE_DIR  = ./src
+BIN_DIR     = ./bin
 
-CXX:= g++
-CXXFLAGS:= -I$(INCLUDE_DIR) -std=c++17 -Wall -Wextra -MMD
-SDL_FLAGS:= $(shell sdl2-config --cflags --libs)
+CXX        := g++
+CXXFLAGS   := -I$(INCLUDE_DIR) -std=c++17 -Wall -Wextra -MMD
+SDL_FLAGS  := $(shell sdl2-config --cflags --libs)
 
-SOURCES := $(wildcard $(SOURCE_DIR)/*.cpp)
-OBJECTS := $(patsubst $(SOURCE_DIR)/%.cpp, $(BIN_DIR)/%.o, $(SOURCES))
-DEPS    := $(OBJECTS:.o=.d)
-BINARIES := $(BIN_DIR)/cv $(BIN_DIR)/vco $(BIN_DIR)/scope
+# Source and object files
+SOURCES    := $(wildcard $(SOURCE_DIR)/*.cpp)
+OBJECTS    := $(patsubst $(SOURCE_DIR)/%.cpp, $(BIN_DIR)/%.o, $(SOURCES))
+DEPS       := $(OBJECTS:.o=.d)
+
+# Binaries
+BINARIES   := $(BIN_DIR)/cv $(BIN_DIR)/vco $(BIN_DIR)/scope
 
 all: $(BINARIES)
 
-$(BIN_DIR)/cv: $(SOURCE_DIR)/cv.cpp | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $< -o $@
+# Pattern rule for object files
+$(BIN_DIR)/%.o: $(SOURCE_DIR)/%.cpp | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BIN_DIR)/vco: $(SOURCE_DIR)/vco.cpp | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $< -o $@
+# Individual targets
+$(BIN_DIR)/cv: $(BIN_DIR)/cv.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(BIN_DIR)/scope: $(SOURCE_DIR)/scope.cpp | $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) $< $(SDL_FLAGS) -o $@
+$(BIN_DIR)/vco: $(BIN_DIR)/vco.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+$(BIN_DIR)/scope: $(BIN_DIR)/scope.o
+	$(CXX) $(CXXFLAGS) $^ $(SDL_FLAGS) -o $@
 
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
@@ -31,7 +39,8 @@ clean:
 test: all
 	$(BIN_DIR)/cv --duration 1 | $(BIN_DIR)/vco --sensitivity 1 | $(BIN_DIR)/scope --horizontal_scale 48000 --trigger_offset 0 --trigger_threshold 0.500 --trigger
 
-# Include dependency files
+# Include auto-generated dependency files
 -include $(DEPS)
 
 .PHONY: all clean test
+

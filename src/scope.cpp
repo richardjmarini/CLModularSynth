@@ -12,6 +12,8 @@
 #include <argparse/argparse.hpp>
 #include <SDL2/SDL.h>
 
+#include "ringbuffer.hpp"
+
 using namespace std;
 
 int main(int argc, char *argv[]) {
