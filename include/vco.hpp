@@ -2,8 +2,12 @@
 
 class Vco {
 public:
+    enum WaveType { SINE, TRIANGLE, SQUARE };
     Vco(double sampleRate, double sensitivity, double amplitude);
-    double process(double controlVoltage);
+    double generateSineWave(double controlVoltage);
+    double generateTriangleWave(double controlVoltage);
+    double generateSquareWave(double controlVoltage);
+    double generateWaveForm(double controlVoltage, WaveType waveType);
 private:
     double sampleRate_;
     double sensitivity_;
