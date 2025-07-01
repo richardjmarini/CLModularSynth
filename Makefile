@@ -37,7 +37,7 @@ clean:
 	rm -f $(BIN_DIR)/*
 
 test: all
-	$(BIN_DIR)/cv --duration 1 | $(BIN_DIR)/vco --sensitivity 1 | $(BIN_DIR)/scope --horizontal_scale 48000 --trigger_offset 0 --trigger_threshold 0.500 --trigger
+	$(BIN_DIR)/cv --duration 10 | $(BIN_DIR)/vco --sensitivity 4 | $(BIN_DIR)/scope --horizontal_scale 48000 --trigger_offset 1000 --trigger_threshold 0.5 --trigger
 
 # Include auto-generated dependency files
 -include $(DEPS)
