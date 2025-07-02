@@ -23,8 +23,10 @@ int main(int argc, char *argv[]) {
     args.add_argument("--trigger_offset").default_value(0).help("trigger offset").scan<'i', int>();
     args.add_argument("--window_width").default_value(800).help("window width").scan<'i', int>();
     args.add_argument("--window_height").default_value(400).help("window height").scan<'i', int>();
+    args.add_argument("--voltage_per_division").default_value(0.1f).help("vols per division (e.g, 0.1 == 1v)").scan<'g', float>();
     args.add_argument("--time_per_division").default_value(0.001f).help("time per division in seconds (e.g, 0.001 == 1ms)").scan<'g', float>();
-    args.add_argument("--divisions").default_value(10).help("total divisions to display (e.g, 10)").scan<'i', int>();
+    args.add_argument("--time_divisions").default_value(10).help("total time divisions to display (e.g, 10)").scan<'i', int>();
+    args.add_argument("--voltage_divisions").default_value(10).help("total voltage divisions to display (e.g, 10)").scan<'i', int>();
 
     try {
         args.parse_args(argc, argv);
@@ -37,9 +39,13 @@ int main(int argc, char *argv[]) {
     int windowHeight= args.get<int>("window_height");
     int sampleRate= args.get<int>("sample_rate");
     float timePerDivision= args.get<float>("time_per_division");
-    int divisions= args.get<int>("divisions");
+    float voltagePerDivision= args.get<float>("voltage_per_division");
+    int timeDivisions= args.get<int>("time_divisions");
+    int voltageDivisions= args.get<int>("voltage_divisions");
 
-    float totalTime= timePerDivision * divisions;  // 10 divisions displayed
+    float totalTime= timePerDivision * timeDivisions;  
+    float voltageFullScale= voltagePerDivision * voltageDivisions;
+    float voltageHalfScale= voltageFullScale / 2.0f;
     size_t displayBufferSize= static_cast<size_t>(sampleRate * totalTime);
     int ringBufferSize= displayBufferSize * 4;
 
@@ -149,19 +155,30 @@ int main(int argc, char *argv[]) {
                 }
     
                 // time divisions
-                for(int i=1; i <= divisions; ++i) {
-                    int x= i * windowWidth / divisions;
+                for(int i=1; i <= timeDivisions; ++i) {
+                    int x= i * windowWidth / timeDivisions;
                     for(int y= 0; y < windowHeight; ++y)
                         pixels[y * pitchFactor + x]= 0x222222;
                     }
 
+                // voltage divisions (y-axis)
+                for(int i= 0; i <= voltageDivisions; ++i) {
+                    int y= i * (windowHeight / voltageDivisions);
+                    for(int x= 0; x < windowWidth; ++x) 
+                        pixels[y * pitchFactor + x]= (i == voltageDivisions / 2) ? 0x444444: 0x222222;
+                }
+
 
                 // waveform
                 for (int i= 1; i < windowWidth; ++i) {
+
                     int idx1= static_cast<int>((i - 1) * scale) % displayBufferSize;
                     int idx2= static_cast<int>(i * scale) % displayBufferSize;
-                    int y1= clamp(static_cast<int>(yCenter - displayBuffer[idx1] * yCenter), 0, yLimit);
-                    int y2= clamp(static_cast<int>(yCenter - displayBuffer[idx2] * yCenter), 0, yLimit);
+                 
+
+                    int y1= clamp(static_cast<int>(yCenter - (displayBuffer[idx1] / voltageHalfScale) * yCenter), 0, yLimit);
+                    int y2= clamp(static_cast<int>(yCenter - (displayBuffer[idx2] / voltageHalfScale) * yCenter), 0, yLimit);
+
                     if (y1 > y2) swap(y1, y2);
                     for (int y= y1; y <= y2; ++y)
                         pixels[y * pitchFactor + i]= 0x00FF00;
