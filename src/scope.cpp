@@ -17,12 +17,14 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
     argparse::ArgumentParser args("Scope");
-    args.add_argument("--horizontal_scale").default_value(48000).help("horizontal time scale").scan<'i', int>();
+    args.add_argument("--sample_rate").default_value(48000).help("sample rate (e.g, 48000 == 48KHz").scan<'i', int>();
     args.add_argument("--trigger").default_value(false).implicit_value(true).help("enable trigger mode");
     args.add_argument("--trigger_threshold").default_value(0.01f).help("trigger threshold").scan<'g', float>();
     args.add_argument("--trigger_offset").default_value(0).help("trigger offset").scan<'i', int>();
     args.add_argument("--window_width").default_value(800).help("window width").scan<'i', int>();
     args.add_argument("--window_height").default_value(400).help("window height").scan<'i', int>();
+    args.add_argument("--time_per_division").default_value(0.001f).help("time per division in seconds (e.g, 0.001 == 1ms)").scan<'g', float>();
+    args.add_argument("--divisions").default_value(10).help("total divisions to display (e.g, 10)").scan<'i', int>();
 
     try {
         args.parse_args(argc, argv);
@@ -33,7 +35,12 @@ int main(int argc, char *argv[]) {
 
     int windowWidth= args.get<int>("window_width");
     int windowHeight= args.get<int>("window_height");
-    int displayBufferSize= args.get<int>("horizontal_scale");
+    int sampleRate= args.get<int>("sample_rate");
+    float timePerDivision= args.get<float>("time_per_division");
+    int divisions= args.get<int>("divisions");
+
+    float totalTime= timePerDivision * divisions;  // 10 divisions displayed
+    size_t displayBufferSize= static_cast<size_t>(sampleRate * totalTime);
     int ringBufferSize= displayBufferSize * 4;
 
     RingBuffer<float> ringBuffer(ringBufferSize);
@@ -86,7 +93,6 @@ int main(int argc, char *argv[]) {
 
                 ringBuffer.push(sample);
 
-
                 lock_guard<mutex> lock(bufferMutex);
                 if (trigger) {
 
@@ -135,6 +141,22 @@ int main(int argc, char *argv[]) {
 
             {
                 lock_guard<mutex> lock(bufferMutex);
+
+                // x-axis
+                int yAxis= static_cast<int>(windowHeight / 2);
+                for(int x=0; x < windowWidth; ++x) {
+                    pixels[yAxis * pitchFactor + x]= 0x444444;
+                }
+    
+                // time divisions
+                for(int i=1; i <= divisions; ++i) {
+                    int x= i * windowWidth / divisions;
+                    for(int y= 0; y < windowHeight; ++y)
+                        pixels[y * pitchFactor + x]= 0x222222;
+                    }
+
+
+                // waveform
                 for (int i= 1; i < windowWidth; ++i) {
                     int idx1= static_cast<int>((i - 1) * scale) % displayBufferSize;
                     int idx2= static_cast<int>(i * scale) % displayBufferSize;
@@ -145,6 +167,7 @@ int main(int argc, char *argv[]) {
                         pixels[y * pitchFactor + i]= 0x00FF00;
                 }
 
+                // trigger indicator
                 if (trigger) {
                     int markerX = windowWidth - static_cast<int>((displayBufferSize - triggerOffset) / scale);
                     if (markerX >= 0 && markerX < windowWidth) {
@@ -154,7 +177,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-
+                    
             SDL_UnlockTexture(waveformTexture);
             SDL_RenderClear(renderer);
             SDL_RenderCopy(renderer, waveformTexture, nullptr, nullptr);
