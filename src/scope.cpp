@@ -99,6 +99,10 @@ int main(int argc, char *argv[]) {
                     }
 
                 }
+                else {
+                    ringBuffer.copyFromTail(0, displayBuffer.data(), displayBufferSize);
+                    dataReady.notify_one();
+                }
                 previousSample= sample;
             }
         }
