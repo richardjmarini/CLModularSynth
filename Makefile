@@ -37,7 +37,7 @@ clean:
 	rm -f $(BIN_DIR)/*
 
 test: all
-	$(BIN_DIR)/cv --duration 3 | $(BIN_DIR)/vco --sensitivity 100 | $(BIN_DIR)/scope --sample_rate 48000 --trigger --trigger_offset 100 --trigger_threshold 0.5 --divisions 20 --time_per_division .001
+	$(BIN_DIR)/cv --duration 3 | $(BIN_DIR)/vco --sensitivity 100 | $(BIN_DIR)/scope --sample_rate 48000 --trigger --trigger_offset 100 --trigger_threshold 0.5 --time_divisions 20 --time_per_division .001 --voltage_divisions 10 --voltage_per_division 0.2
 
 # Include auto-generated dependency files
 -include $(DEPS)
