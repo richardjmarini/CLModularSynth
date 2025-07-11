@@ -15,6 +15,33 @@
 
 using namespace std;
 
+template<typename T> optional<size_t> findTriggerIndex(const RingBuffer<T>& buffer, float triggerThreshold) {
+    size_t head = buffer.head();
+    size_t tail = buffer.tail();
+    size_t capacity = buffer.capacity();
+
+    const auto& data = buffer.data(); // assuming you expose this safely
+
+    size_t current = (head + capacity - 2) % capacity;
+    size_t prev = (head + capacity - 3) % capacity;
+
+    size_t validSamples = (head >= tail) ? (head - tail) : (capacity - (tail - head));
+
+    for (size_t i = 0; i < validSamples - 1; ++i) {
+        float y0 = data[prev];
+        float y1 = data[current];
+
+        if (y0 < triggerThreshold && y1 >= triggerThreshold) {
+            return current;
+        }
+
+        current = prev;
+        prev = (prev + capacity - 1) % capacity;
+    }
+
+    return nullopt;
+}
+
 int main(int argc, char *argv[]) {
     argparse::ArgumentParser args("Scope");
     args.add_argument("--sample_rate").default_value(48000).help("sample rate (e.g, 48000 == 48KHz").scan<'i', int>();
@@ -27,6 +54,7 @@ int main(int argc, char *argv[]) {
     args.add_argument("--time_per_division").default_value(0.001f).help("time per division in seconds (e.g, 0.001 == 1ms)").scan<'g', float>();
     args.add_argument("--time_divisions").default_value(10).help("total time divisions to display (e.g, 10)").scan<'i', int>();
     args.add_argument("--voltage_divisions").default_value(10).help("total voltage divisions to display (e.g, 10)").scan<'i', int>();
+    args.add_argument("--voltage_autoscale").default_value(true).implicit_value(true).help("autoscale y-axis");
 
     try {
         args.parse_args(argc, argv);
@@ -42,12 +70,17 @@ int main(int argc, char *argv[]) {
     float voltagePerDivision= args.get<float>("voltage_per_division");
     int timeDivisions= args.get<int>("time_divisions");
     int voltageDivisions= args.get<int>("voltage_divisions");
+    bool trigger= args.get<bool>("trigger");
+    float triggerThreshold= args.get<float>("trigger_threshold");
+    int triggerOffset= args.get<int>("trigger_offset");
+    bool voltageAutoScale= args.get<bool>("voltage_autoscale");
 
     float totalTime= timePerDivision * timeDivisions;  
     float voltageFullScale= voltagePerDivision * voltageDivisions;
     float voltageHalfScale= voltageFullScale / 2.0f;
     size_t displayBufferSize= static_cast<size_t>(sampleRate * totalTime);
     int ringBufferSize= displayBufferSize * 4;
+    int triggerScreenIndex= displayBufferSize / timeDivisions;
 
     RingBuffer<float> ringBuffer(ringBufferSize);
     vector<float> displayBuffer(displayBufferSize, 0.0f);
@@ -56,9 +89,6 @@ int main(int argc, char *argv[]) {
     mutex bufferMutex;
     condition_variable dataReady;
 
-    bool trigger= args.get<bool>("trigger");
-    float triggerThreshold= args.get<float>("trigger_threshold");
-    int triggerOffset= args.get<int>("trigger_offset");
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -92,6 +122,7 @@ int main(int argc, char *argv[]) {
         float previousSample= 0.0f;
 
         while (running) {
+
             if (getline(cin, line)) {
 
                 if(!(istringstream(line) >> sample))
@@ -105,14 +136,30 @@ int main(int argc, char *argv[]) {
                     if (ringBuffer.size() >= static_cast<size_t>(triggerOffset + displayBufferSize)) {
                         bool fireTrigger = trigger && previousSample < triggerThreshold && sample >= triggerThreshold;
                         if (fireTrigger) {
-                            ringBuffer.copyFromTail(triggerOffset, displayBuffer.data(), displayBufferSize);
+
+                            auto triggered= findTriggerIndex(ringBuffer, triggerThreshold);
+                            size_t offsetFromHead= 0;
+
+                            if(triggered.has_value()) {
+                                size_t triggerIndex= triggered.value();
+                                int triggerDistanceFromHead= static_cast<int>((ringBuffer.head() + ringBuffer.capacity() - triggerIndex) % ringBuffer.capacity());
+                                offsetFromHead= triggerDistanceFromHead + triggerScreenIndex;
+
+                                if(offsetFromHead + displayBufferSize > ringBuffer.capacity()) {
+                                    offsetFromHead= ringBuffer.capacity() - displayBufferSize;
+                                }
+                            } else {
+                                offsetFromHead= 0;
+                            }
+                
+                            ringBuffer.copyFromTail(offsetFromHead, displayBuffer.data(), displayBufferSize);
                             dataReady.notify_one();
                         }
                     }
 
                 }
                 else {
-                    ringBuffer.copyFromTail(0, displayBuffer.data(), displayBufferSize);
+                    ringBuffer.copyFromTail(triggerOffset, displayBuffer.data(), displayBufferSize);
                     dataReady.notify_one();
                 }
                 previousSample= sample;
@@ -186,7 +233,15 @@ int main(int argc, char *argv[]) {
 
                 // trigger indicator
                 if (trigger) {
-                    int markerX = windowWidth - static_cast<int>((displayBufferSize - triggerOffset) / scale);
+
+                    int thresholdY = static_cast<int>(yCenter - (triggerThreshold / voltageHalfScale) * yCenter);
+                    if (thresholdY >= 0 && thresholdY < windowHeight) {
+                        for (int x = 0; x < windowWidth; ++x) {
+                            pixels[thresholdY * pitchFactor + x] = 0xFFFF00; // Yellow line
+                        }
+                    }
+
+                    int markerX = (float)triggerScreenIndex / displayBufferSize * windowWidth;
                     if (markerX >= 0 && markerX < windowWidth) {
                         for (int y = 0; y < windowHeight; ++y) {
                             pixels[y * pitchFactor + markerX] = 0xFF0000; 
