@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     float voltageHalfScale= voltageFullScale / 2.0f;
     size_t displayBufferSize= static_cast<size_t>(sampleRate * totalTime);
     int ringBufferSize= displayBufferSize * 4;
-    int triggerScreenIndex= displayBufferSize / timeDivisions;
+    int triggerScreenIndex= triggerOffset;
 
     RingBuffer<float> ringBuffer(ringBufferSize);
     vector<float> displayBuffer(displayBufferSize, 0.0f);
@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
                             if(triggered.has_value()) {
                                 size_t triggerIndex= triggered.value();
                                 int triggerDistanceFromHead= static_cast<int>((ringBuffer.head() + ringBuffer.capacity() - triggerIndex) % ringBuffer.capacity());
-                                offsetFromHead= triggerDistanceFromHead + triggerScreenIndex;
+                                offsetFromHead= triggerDistanceFromHead + triggerOffset;
 
                                 if(offsetFromHead + displayBufferSize > ringBuffer.capacity()) {
                                     offsetFromHead= ringBuffer.capacity() - displayBufferSize;
@@ -195,12 +195,6 @@ int main(int argc, char *argv[]) {
             {
                 lock_guard<mutex> lock(bufferMutex);
 
-                // x-axis
-                int yAxis= static_cast<int>(windowHeight / 2);
-                for(int x=0; x < windowWidth; ++x) {
-                    pixels[yAxis * pitchFactor + x]= 0x444444;
-                }
-    
                 // time divisions
                 for(int i=1; i <= timeDivisions; ++i) {
                     int x= i * windowWidth / timeDivisions;
@@ -214,6 +208,14 @@ int main(int argc, char *argv[]) {
                     for(int x= 0; x < windowWidth; ++x) 
                         pixels[y * pitchFactor + x]= (i == voltageDivisions / 2) ? 0x444444: 0x222222;
                 }
+
+
+                // x-axis
+                int yAxis= static_cast<int>(windowHeight / 2);
+                for(int x=0; x < windowWidth; ++x) {
+                    pixels[yAxis * pitchFactor + x]= 0x0000FF;
+                } 
+
 
 
                 // waveform
@@ -241,7 +243,7 @@ int main(int argc, char *argv[]) {
                         }
                     }
 
-                    int markerX = (float)triggerScreenIndex / displayBufferSize * windowWidth;
+                    int markerX = (float)triggerOffset / displayBufferSize * windowWidth;
                     if (markerX >= 0 && markerX < windowWidth) {
                         for (int y = 0; y < windowHeight; ++y) {
                             pixels[y * pitchFactor + markerX] = 0xFF0000; 
