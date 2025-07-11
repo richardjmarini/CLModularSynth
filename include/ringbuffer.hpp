@@ -12,6 +12,22 @@ public:
     explicit RingBuffer(size_t capacity)
         : capacity_(capacity + 1), buffer_(capacity_), head_(0), tail_(0) {}
 
+    const std::vector<T>& data() const {
+         return buffer_; 
+    }
+
+    size_t head() const { 
+        return head_; 
+    }
+
+    size_t tail() const {
+        return tail_; 
+    }
+
+    size_t capacity() const { 
+        return capacity_; 
+    }
+
     bool push(const T &item) {
         size_t head = head_.load(memory_order_relaxed);
         size_t nextHead = increment(head);
@@ -54,6 +70,7 @@ public:
     }
 
     void copyFromTail(size_t offsetFromHead, T* dest, size_t count) {
+
         size_t safeHead = head_;
         size_t safeTail = tail_;
     
