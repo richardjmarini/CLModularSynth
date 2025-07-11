@@ -77,23 +77,24 @@ make
 ```bash
 ./scope [--horizontal_scale VAR] [--trigger] [--trigger_threshold VAR] [--trigger_offset VAR] [--buffer_size VAR] [--window_width VAR] [--window_height VAR]
 ```
-| Option                | Description                                    | Default |
-| --------------------- | ---------------------------------------------- | ------- |
-| `--horizontal_scale`  | Time scale of the horizontal axis              | 48000   |
-| `--trigger`           | Enable trigger mode                            |         |
-| `--trigger_threshold` | Trigger threshold level                        | 0.01    |
-| `--trigger_offset`    | Samples to offset after trigger before display | 0       |
-| `--buffer_size`       | Size of the internal ring buffer               | 800     |
-| `--window_width`      | Width of the display window (pixels)           | 800     |
-| `--window_height`     | Height of the display window (pixels)          | 400     |
-| `-h, --help`          | Show help message                              |         |
-| `-v, --version`       | Show version information                       |         |
-
+| Option                   | Description                                    | Default |
+| ------------------------ | ---------------------------------------------- | ------- |
+| `--sample_rate`          | Time scale of the horizontal axis              | 48000   |
+| `--trigger`              | Enable trigger mode                            |         |
+| `--trigger_threshold`    | Trigger threshold level                        | 0.01    |
+| `--trigger_offset`       | Samples to offset after trigger before display | 0       |
+| `--window_width`         | Width of the display window (pixels)           | 800     |
+| `--window_height`        | Height of the display window (pixels)          | 400     |
+| `--voltage_per_division` | Y-Axis, value per division                     | 0.1     |
+| `--voltage_divisions`    | Y-Axis, number of divisions                    | 10      |
+| `--time_per_division`    | X-Axis, value per division                     | 0.001   |
+| `--time_divisions`       | X-Axis, number of divisions                    | 10      |
+| `-h, --help`             | Show help message                              |         |
+| `-v, --version`          | Show version information                       |         |
 
 ## Exmaple
 ```bash
-./cv --duration 1 | ./vco --sensitivity 1 | ./scope 48000 --trigger_offset 0 --trigger_threshold 0.500 --trigger
-
+./bin/cv --duration 3 | ./bin/vco --sensitivity 100 | ./bin/scope --sample_rate 48000 --trigger --trigger_offset 100 --trigger_threshold 0.5 --time_divisions 20 --time_per_division .001 --voltage_divisions 10 --voltage_per_division 0.2
 ```
 
 ![scope_screenshot](images/scope_screenshot.png)
