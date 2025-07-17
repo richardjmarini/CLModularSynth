@@ -75,6 +75,18 @@ make
 | `-v, --version` | Show version information    |         |
 
 ```bash
+Filter [--help] [--version] [--filter_type VAR] --cutoff VAR [--rolloff VAR] [--sample_rate VAR]
+```
+| Option          | Description                                                 | Default   | Required |
+| --------------- | ----------------------------------------------------------- | --------- | -------- |
+| `-h, --help`    | Show help message and exit                                  | —         | No       |
+| `-v, --version` | Print version information and exit                          | —         | No       |
+| `--filter_type` | Type of filter: `lowpass` or `highpass`                     | `lowpass` | No       |
+| `--cutoff`      | Cutoff frequency in Hz                                      | —         | **Yes**  |
+| `--rolloff`     | Rolloff in dB/oct (must be a multiple of 6, e.g. 6, 12, 18) | `12`      | No       |
+| `--sample_rate` | Sampling rate in Hz                                         | `48000`   | No       |
+
+```bash
 ./scope [--horizontal_scale VAR] [--trigger] [--trigger_threshold VAR] [--trigger_offset VAR] [--buffer_size VAR] [--window_width VAR] [--window_height VAR]
 ```
 | Option                   | Description                                    | Default |
@@ -94,7 +106,7 @@ make
 
 ## Exmaple
 ```bash
-./bin/cv --duration 3 | ./bin/vco --sensitivity 100 | ./bin/scope --sample_rate 48000 --trigger --trigger_offset 100 --trigger_threshold 0.5 --time_divisions 20 --time_per_division .001 --voltage_divisions 10 --voltage_per_division 0.2
+./bin/cv --duration 3 | ./bin/vco --wave_type square --sensitivity 100 | ./bin/filter --filter_type lowpass --cutoff 3000 --rolloff 12 --sample_rate 48000 | ./bin/filter --filter_type highpass --cutoff 1000 --rolloff 12 --sample_rate 48000 | ./bin/scope --sample_rate 48000 --trigger --trigger_offset 100 --trigger_threshold 0.5 --time_divisions 20 --time_per_division .001 --voltage_divisions 10 --voltage_per_division 0.2
 ```
 
 ![scope_screenshot](images/scope_screenshot.png)
