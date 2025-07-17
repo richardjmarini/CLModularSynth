@@ -9,8 +9,6 @@ using namespace std;
 
 Vco::WaveType parseWaveType(const string& value) {
 
-    cout << "wave form" << value << endl;
-
     if(value == "sine")
         return  Vco::WaveType::SINE;
     else if(value == "triangle") 
@@ -88,6 +86,7 @@ double Vco::generateWaveForm(double controlVoltage, Vco::WaveType waveType) {
 
 int main(int argc, char *argv[]) {
 
+   string line;
    double controlVoltage;
    double sampleRate;
    double sensitivity;
@@ -100,7 +99,7 @@ int main(int argc, char *argv[]) {
    args.add_argument("--wave_type").default_value(string("sine")).help("sine, triangle, square").action([](const string &value) {
 
        if (value != "sine" && value != "triangle" && value != "square") 
-           throw std::runtime_error("Invalid wave type: must be 'sine', 'triangle', or 'square'");
+           throw runtime_error("Invalid wave type: must be 'sine', 'triangle', or 'square'");
 
       return value;
    });
@@ -120,9 +119,15 @@ int main(int argc, char *argv[]) {
    Vco::WaveType waveType= parseWaveType(args.get<string>("wave_type"));
 
    Vco vco(sampleRate, sensitivity, amplitude);
-   while(cin >> controlVoltage) {
-       cout << vco.generateWaveForm(controlVoltage, waveType) << endl;
-   }
+
+    while (getline(cin, line)) {
+        istringstream iss(line);
+        if (iss >> controlVoltage) {
+            cout << vco.generateWaveForm(controlVoltage, waveType) << '\n';
+        } else {
+            cerr << "Skipping non-numeric line: " << line << endl;
+        }
+    }
 
    return 0;
 }

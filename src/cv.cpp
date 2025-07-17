@@ -23,7 +23,7 @@ void Cv::process(double duration) {
     for(size_t i= 0; i < totalSamples; ++i) {
 
         double sample= amplitude_;
-        std::cout << sample << std::endl;
+        std::cout << sample << '\n';
 
         auto next_time= start + chrono::duration<double>(i * (1.0 / sampleRate_));
         while(clock::now() < next_time) {
@@ -46,9 +46,9 @@ int main(int argc, char *argv[]) {
 
    try {
        args.parse_args(argc, argv);
-   } catch (const std::exception &err) {
-      std::cerr << err.what() << std::endl;
-      std::cerr << args;
+   } catch (const exception &err) {
+      cerr << err.what() << endl;
+      cerr << args;
       return -1;
    }
 

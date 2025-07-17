@@ -54,7 +54,6 @@ int main(int argc, char *argv[]) {
     args.add_argument("--time_per_division").default_value(0.001f).help("time per division in seconds (e.g, 0.001 == 1ms)").scan<'g', float>();
     args.add_argument("--time_divisions").default_value(10).help("total time divisions to display (e.g, 10)").scan<'i', int>();
     args.add_argument("--voltage_divisions").default_value(10).help("total voltage divisions to display (e.g, 10)").scan<'i', int>();
-    args.add_argument("--voltage_autoscale").default_value(true).implicit_value(true).help("autoscale y-axis");
 
     try {
         args.parse_args(argc, argv);
@@ -73,14 +72,12 @@ int main(int argc, char *argv[]) {
     bool trigger= args.get<bool>("trigger");
     float triggerThreshold= args.get<float>("trigger_threshold");
     int triggerOffset= args.get<int>("trigger_offset");
-    bool voltageAutoScale= args.get<bool>("voltage_autoscale");
 
     float totalTime= timePerDivision * timeDivisions;  
     float voltageFullScale= voltagePerDivision * voltageDivisions;
     float voltageHalfScale= voltageFullScale / 2.0f;
     size_t displayBufferSize= static_cast<size_t>(sampleRate * totalTime);
     int ringBufferSize= displayBufferSize * 4;
-    int triggerScreenIndex= triggerOffset;
 
     RingBuffer<float> ringBuffer(ringBufferSize);
     vector<float> displayBuffer(displayBufferSize, 0.0f);
