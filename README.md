@@ -75,16 +75,16 @@ make
 | `-v, --version` | Show version information    |         |
 
 ```bash
-Filter [--help] [--version] [--filter_type VAR] --cutoff VAR [--rolloff VAR] [--sample_rate VAR]
+./filter [--filter_type VAR] --cutoff VAR [--rolloff VAR] [--sample_rate VAR]
 ```
 | Option          | Description                                                 | Default   | Required |
 | --------------- | ----------------------------------------------------------- | --------- | -------- |
-| `-h, --help`    | Show help message and exit                                  | —         | No       |
-| `-v, --version` | Print version information and exit                          | —         | No       |
 | `--filter_type` | Type of filter: `lowpass` or `highpass`                     | `lowpass` | No       |
 | `--cutoff`      | Cutoff frequency in Hz                                      | —         | **Yes**  |
 | `--rolloff`     | Rolloff in dB/oct (must be a multiple of 6, e.g. 6, 12, 18) | `12`      | No       |
 | `--sample_rate` | Sampling rate in Hz                                         | `48000`   | No       |
+| `-h, --help`    | Show help message and exit                                  | —         | No       |
+| `-v, --version` | Print version information and exit                          | —         | No       |
 
 ```bash
 ./scope [--horizontal_scale VAR] [--trigger] [--trigger_threshold VAR] [--trigger_offset VAR] [--buffer_size VAR] [--window_width VAR] [--window_height VAR]
