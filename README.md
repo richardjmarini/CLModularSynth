@@ -87,6 +87,17 @@ make
 | `-v, --version` | Print version information and exit                          | —         | No       |
 
 ```bash
+./env --attack VAR] [--decay VAR] [--sustain VAR] [--release VAR] [--sample_rate VAR]
+```
+| Argument | Description | Default | Units |
+|----------|-------------|---------|-------|
+| `--attack` | Attack time - how long to reach peak level | 0.01 | seconds |
+| `--decay` | Decay time - how long to fall from peak to sustain level | 0.1 | seconds |
+| `--sustain` | Sustain level - the level maintained while gate is high | 0.7 | amplitude (0.0-1.0) |
+| `--release` | Release time - how long to fall from sustain to zero | 0.3 | seconds |
+| `--sample_rate` | Audio sample rate for timing calculations | 48000 | samples per second |
+
+```bash
 ./scope [--horizontal_scale VAR] [--trigger] [--trigger_threshold VAR] [--trigger_offset VAR] [--buffer_size VAR] [--window_width VAR] [--window_height VAR]
 ```
 | Option                   | Description                                    | Default |
