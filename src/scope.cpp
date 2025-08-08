@@ -23,7 +23,9 @@ using namespace std;
 atomic<bool> quit { false };
 
 void signal_handler(int signum) {
+
     quit= true;
+    cout << "receive signal: " << signum << '\n'; 
 }
 
 template<typename T> optional<size_t> findTriggerIndex(const RingBuffer<T>& buffer, float triggerThreshold) {
@@ -151,7 +153,7 @@ int main(int argc, char *argv[]) {
                 inputBuffer[bytesRead]= '\0';
                 pending.append(inputBuffer);
 
-                while((pos= pending.find('\n')) != string::npos) {
+                while(((pos= pending.find('\n')) != string::npos) && !quit) {
 
                     line= pending.substr(0, pos);
                     pending.erase(0, pos + 1);
@@ -161,7 +163,7 @@ int main(int argc, char *argv[]) {
                     if(iss >> sample)  {
                     
                         int retries= 0;
-                        while(!ringBuffer.push(sample)) {
+                        while((!ringBuffer.push(sample)) && !quit) {
                             this_thread::sleep_for(chrono::microseconds(100));
                             if(++retries > maxRetries) {
                                break;
