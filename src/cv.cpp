@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
    } catch (const exception &err) {
       cerr << err.what() << endl;
       cerr << args;
-      return -1;
+      return EXIT_FAILURE;
    }
 
    sampleRate= args.get<double>("sampleRate");
@@ -59,5 +59,5 @@ int main(int argc, char *argv[]) {
    Cv cv(sampleRate, amplitude);
    cv.process(duration);
 
-   return 0;
+   return EXIT_SUCCESS;
 }

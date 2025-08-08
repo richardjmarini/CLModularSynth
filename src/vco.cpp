@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
    } catch (const exception &err) {
       cerr << err.what() << endl;
       cerr << args;
-      return -1;
+      return EXIT_FAILURE;
    }
 
    sensitivity= args.get<double>("sensitivity");
@@ -129,5 +129,5 @@ int main(int argc, char *argv[]) {
         }
     }
 
-   return 0;
+   return EXIT_SUCCESS;
 }

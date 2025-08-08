@@ -12,7 +12,7 @@ OBJECTS    := $(patsubst $(SOURCE_DIR)/%.cpp, $(BIN_DIR)/%.o, $(SOURCES))
 DEPS       := $(OBJECTS:.o=.d)
 
 # Binaries
-BINARIES   := $(BIN_DIR)/cv $(BIN_DIR)/vco $(BIN_DIR)/scope $(BIN_DIR)/filter
+BINARIES   := $(BIN_DIR)/cv $(BIN_DIR)/vco $(BIN_DIR)/scope $(BIN_DIR)/filter $(BIN_DIR)/env $(BIN_DIR)/gate
 
 all: $(BINARIES)
 
@@ -28,6 +28,12 @@ $(BIN_DIR)/vco: $(BIN_DIR)/vco.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 $(BIN_DIR)/filter: $(BIN_DIR)/filter.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+$(BIN_DIR)/env: $(BIN_DIR)/env.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+$(BIN_DIR)/gate: $(BIN_DIR)/gate.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 $(BIN_DIR)/scope: $(BIN_DIR)/scope.o

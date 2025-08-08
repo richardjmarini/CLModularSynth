@@ -7,6 +7,11 @@
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+#include <csignal>
+#include <atomic>
+#include <sys/select.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <argparse/argparse.hpp>
 #include <SDL2/SDL.h>
@@ -15,7 +20,14 @@
 
 using namespace std;
 
+atomic<bool> quit { false };
+
+void signal_handler(int signum) {
+    quit= true;
+}
+
 template<typename T> optional<size_t> findTriggerIndex(const RingBuffer<T>& buffer, float triggerThreshold) {
+
     size_t head = buffer.head();
     size_t tail = buffer.tail();
     size_t capacity = buffer.capacity();
@@ -43,6 +55,7 @@ template<typename T> optional<size_t> findTriggerIndex(const RingBuffer<T>& buff
 }
 
 int main(int argc, char *argv[]) {
+
     argparse::ArgumentParser args("Scope");
     args.add_argument("--sample_rate").default_value(48000).help("sample rate (e.g, 48000 == 48KHz").scan<'i', int>();
     args.add_argument("--trigger").default_value(false).implicit_value(true).help("enable trigger mode");
@@ -59,7 +72,7 @@ int main(int argc, char *argv[]) {
         args.parse_args(argc, argv);
     } catch (const exception &err) {
         cerr << err.what() << endl << args;
-        return -1;
+        return EXIT_FAILURE;;
     }
 
     int windowWidth= args.get<int>("window_width");
@@ -78,14 +91,16 @@ int main(int argc, char *argv[]) {
     float voltageHalfScale= voltageFullScale / 2.0f;
     size_t displayBufferSize= static_cast<size_t>(sampleRate * totalTime);
     int ringBufferSize= displayBufferSize * 4;
+    int maxRetries= ringBufferSize * 1;
 
     RingBuffer<float> ringBuffer(ringBufferSize);
     vector<float> displayBuffer(displayBufferSize, 0.0f);
 
-    atomic<bool> running(true);
     mutex bufferMutex;
     condition_variable dataReady;
 
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -112,61 +127,99 @@ int main(int argc, char *argv[]) {
         windowHeight
     );
 
-    // Producer thread
+
+    // producer thread
     thread inputThread([&]() {
+
         string line;
+        string pending;
         float sample;
         float previousSample= 0.0f;
+        char inputBuffer[256];
+        ssize_t bytesRead;
+        size_t pos;
 
-        while (running) {
+        // set non-blocking mode
+        int flags= fcntl(STDIN_FILENO, F_GETFL, 0);
+        fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
 
-            if (getline(cin, line)) {
+        while (!quit) {
 
-                if(!(istringstream(line) >> sample))
-                    continue;
+            bytesRead= read(STDIN_FILENO, inputBuffer, sizeof(inputBuffer) -1);
+            if(bytesRead> 0) {
 
-                ringBuffer.push(sample);
+                inputBuffer[bytesRead]= '\0';
+                pending.append(inputBuffer);
 
-                lock_guard<mutex> lock(bufferMutex);
-                if (trigger) {
+                while((pos= pending.find('\n')) != string::npos) {
 
-                    if (ringBuffer.size() >= static_cast<size_t>(triggerOffset + displayBufferSize)) {
-                        bool fireTrigger = trigger && previousSample < triggerThreshold && sample >= triggerThreshold;
-                        if (fireTrigger) {
+                    line= pending.substr(0, pos);
+                    pending.erase(0, pos + 1);
 
-                            auto triggered= findTriggerIndex(ringBuffer, triggerThreshold);
-                            size_t offsetFromHead= 0;
+                    istringstream iss(line);
 
-                            if(triggered.has_value()) {
-                                size_t triggerIndex= triggered.value();
-                                int triggerDistanceFromHead= static_cast<int>((ringBuffer.head() + ringBuffer.capacity() - triggerIndex) % ringBuffer.capacity());
-                                offsetFromHead= triggerDistanceFromHead + triggerOffset;
-
-                                if(offsetFromHead + displayBufferSize > ringBuffer.capacity()) {
-                                    offsetFromHead= ringBuffer.capacity() - displayBufferSize;
-                                }
-                            } else {
-                                offsetFromHead= 0;
+                    if(iss >> sample)  {
+                    
+                        int retries= 0;
+                        while(!ringBuffer.push(sample)) {
+                            this_thread::sleep_for(chrono::microseconds(100));
+                            if(++retries > maxRetries) {
+                               break;
                             }
+                        }
+
+                        lock_guard<mutex> lock(bufferMutex);
+                        if (trigger) {
+
+                            if (ringBuffer.size() >= static_cast<size_t>(triggerOffset + displayBufferSize)) {
+                                bool fireTrigger = trigger && previousSample < triggerThreshold && sample >= triggerThreshold;
+
+                            if (fireTrigger) {
+    
+                                    auto triggered= findTriggerIndex(ringBuffer, triggerThreshold);
+                                    size_t offsetFromHead= 0;
+
+                                    if(triggered.has_value()) {
+                                        size_t triggerIndex= triggered.value();
+                                        int triggerDistanceFromHead= static_cast<int>((ringBuffer.head() + ringBuffer.capacity() - triggerIndex) % ringBuffer.capacity());
+                                        offsetFromHead= triggerDistanceFromHead + triggerOffset;
+
+                                        if(offsetFromHead + displayBufferSize > ringBuffer.capacity()) {
+                                            offsetFromHead= ringBuffer.capacity() - displayBufferSize;
+                                        }
+                                    } else {
+                                        offsetFromHead= 0;
+                                    }
                 
-                            ringBuffer.copyFromTail(offsetFromHead, displayBuffer.data(), displayBufferSize);
+                                    ringBuffer.copyFromTail(offsetFromHead, displayBuffer.data(), displayBufferSize);
+                                    dataReady.notify_one();
+                                }
+                            }
+
+                        } else {
+                            ringBuffer.copyFromTail(triggerOffset, displayBuffer.data(), displayBufferSize);
                             dataReady.notify_one();
                         }
-                    }
 
-                }
-                else {
-                    ringBuffer.copyFromTail(triggerOffset, displayBuffer.data(), displayBufferSize);
-                    dataReady.notify_one();
-                }
-                previousSample= sample;
-            }
-        }
+                        previousSample= sample;
+                    } // end if iss >> sample
+                } // end while
+            } else if (bytesRead == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                this_thread::sleep_for(chrono::milliseconds(1));
+            } else if (bytesRead == 0) {
+               // no more data
+               quit= true;
+            } else {
+                perror("reading input");
+                quit= true;
+            } // end if bytesRead
+
+        } // end while !quit
+        cout << "quiting thread\n";
     });
 
-    // Main render loop
+    // consumer / render loop
     SDL_Event event;
-    bool quit= false;
     uint32_t *pixels;
     int pitch;
     auto lastDrawTime= chrono::steady_clock::now();
@@ -174,7 +227,8 @@ int main(int argc, char *argv[]) {
 
     while (!quit) {
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) quit= true;
+            if (event.type == SDL_QUIT) 
+                quit= true;
         }
 
         auto now= chrono::steady_clock::now();
@@ -258,13 +312,12 @@ int main(int argc, char *argv[]) {
         this_thread::sleep_for(frameInterval);
     }
 
-    running= false;
     inputThread.join();
 
     SDL_DestroyTexture(waveformTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-    return 0;
+    return EXIT_SUCCESS;;
 }
 
