@@ -115,7 +115,7 @@ make
 | `-h, --help`             | Show help message                              |         |
 | `-v, --version`          | Show version information                       |         |
 
-## Exmaple
+## Example
 ```bash
 ./bin/cv --duration 3 | ./bin/vco --wave_type square --sensitivity 100 | ./bin/filter --filter_type lowpass --cutoff 3000 --rolloff 12 --sample_rate 48000 | ./bin/filter --filter_type highpass --cutoff 1000 --rolloff 12 --sample_rate 48000 | ./bin/scope --sample_rate 48000 --trigger --trigger_offset 100 --trigger_threshold 0.5 --time_divisions 20 --time_per_division .001 --voltage_divisions 10 --voltage_per_division 0.2
 ```
